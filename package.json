@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 8787",
+    "build": "mkdir -p dist/har2jsonl && cp index.html dist/har2jsonl/",
     "deploy": "wrangler deploy",
     "preview": "vite preview"
   },
