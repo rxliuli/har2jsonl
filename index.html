@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HAR to JSONL Converter</title>
+    <title>HAR to JSON Converter</title>
     <style>
       * {
         margin: 0;
@@ -160,16 +160,16 @@
 
       .buttons {
         display: flex;
-        gap: 15px;
+        gap: 10px;
         margin-top: 20px;
       }
 
       .btn {
         flex: 1;
-        padding: 12px 24px;
+        padding: 12px 16px;
         border: none;
         border-radius: 8px;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -243,12 +243,38 @@
       .footer a:hover {
         color: #667eea;
       }
+
+      .toast {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #48bb78;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 1000;
+        transform: translateX(100%);
+        opacity: 0;
+        transition: all 0.3s ease;
+      }
+
+      .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      .toast.error {
+        background: #f56565;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🔄 HAR to JSONL Converter</h1>
-      <p class="subtitle">Convert Chrome DevTools HAR files to JSONL format</p>
+      <h1>🔄 HAR to JSON Converter</h1>
+      <p class="subtitle">Convert Chrome DevTools HAR files to JSON format</p>
 
       <div class="drop-zone" id="dropZone">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -320,8 +346,11 @@
           <button class="btn btn-secondary" onclick="resetAll()">
             Select Again
           </button>
+          <button class="btn btn-secondary" onclick="copyToClipboard()">
+            Copy JSON
+          </button>
           <button class="btn btn-primary" onclick="exportJsonl()">
-            Export JSONL
+            Export JSON
           </button>
         </div>
 
@@ -381,9 +410,23 @@
         checkbox.addEventListener('change', updatePreview)
       })
 
+      // Toast notification function
+      function showToast(message, type = 'success') {
+        const toast = document.createElement('div')
+        toast.className = `toast ${type === 'error' ? 'error' : ''}`
+        toast.textContent = message
+        document.body.appendChild(toast)
+        
+        setTimeout(() => toast.classList.add('show'), 100)
+        setTimeout(() => {
+          toast.classList.remove('show')
+          setTimeout(() => document.body.removeChild(toast), 300)
+        }, 3000)
+      }
+
       function handleFile(file) {
         if (!file.name.endsWith('.har')) {
-          alert('Please select a HAR file!')
+          showToast('Please select a HAR file!', 'error')
           return
         }
 
@@ -393,7 +436,7 @@
             harData = JSON.parse(e.target.result)
             processHar(file.name)
           } catch (error) {
-            alert('Failed to parse HAR file!')
+            showToast('Failed to parse HAR file!', 'error')
             console.error(error)
           }
         }
@@ -497,7 +540,7 @@
         let previewText = `// Preview of first ${Math.min(
           3,
           filtered.length,
-        )} entries (${filtered.length} total)\n// Note: Only response data will be exported to JSONL\n\n`
+        )} entries (${filtered.length} total)\n// Note: Only response data will be exported to JSON\n\n`
         preview.forEach((entry, index) => {
           previewText += `// [${index + 1}] ${entry.url} (Status: ${entry.status})\n`
           previewText += JSON.stringify(entry.data) + '\n'
@@ -515,30 +558,72 @@
         const filtered = getFilteredEntries()
 
         if (filtered.length === 0) {
-          alert('No data to export!')
+          showToast('No data to export!', 'error')
           return
         }
 
-        // Generate JSONL format (each line is a JSON object containing only response data)
-        const jsonlContent = filtered
-          .map((entry) => JSON.stringify(entry.data))
-          .join('\n')
+        // Generate JSON format (array of response objects)
+        const jsonContent = JSON.stringify(
+          filtered.map((entry) => entry.data),
+          null,
+          2
+        )
 
         // Download file
-        const blob = new Blob([jsonlContent], {
-          type: 'application/x-jsonlines',
+        const blob = new Blob([jsonContent], {
+          type: 'application/json',
         })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `har_export_${new Date().getTime()}.jsonl`
+        a.download = `har_export_${new Date().getTime()}.json`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
 
         // Show success message
-        alert(`Successfully exported ${filtered.length} entries!`)
+        showToast(`Successfully exported ${filtered.length} entries!`)
+      }
+
+      async function copyToClipboard() {
+        const filtered = getFilteredEntries()
+
+        if (filtered.length === 0) {
+          showToast('No data to copy!', 'error')
+          return
+        }
+
+        // Generate JSON format (same as export)
+        const jsonContent = JSON.stringify(
+          filtered.map((entry) => entry.data),
+          null,
+          2
+        )
+
+        try {
+          await navigator.clipboard.writeText(jsonContent)
+          showToast(`Successfully copied ${filtered.length} entries to clipboard!`)
+        } catch (err) {
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea')
+          textArea.value = jsonContent
+          textArea.style.position = 'fixed'
+          textArea.style.left = '-999999px'
+          textArea.style.top = '-999999px'
+          document.body.appendChild(textArea)
+          textArea.focus()
+          textArea.select()
+          
+          try {
+            document.execCommand('copy')
+            showToast(`Successfully copied ${filtered.length} entries to clipboard!`)
+          } catch (err) {
+            showToast('Failed to copy to clipboard!', 'error')
+          }
+          
+          document.body.removeChild(textArea)
+        }
       }
 
       function resetAll() {
