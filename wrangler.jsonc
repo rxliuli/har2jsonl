@@ -1,13 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "har2jsonl",
+  "name": "har2json",
   "main": "worker/index.ts",
   "compatibility_date": "2025-01-01",
   "assets": {
-    "directory": "dist",
+    "directory": "public",
     "binding": "ASSETS"
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    {
+      "pattern": "rxliuli.com/har2json/*",
+      "zone_name": "rxliuli.com"
+    },
+    {
+      "pattern": "rxliuli.com/har2jsonl/*",
+      "zone_name": "rxliuli.com"
+    }
+  ]
 }
